@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-brand: hsl(245, 78%, 58%);
+  --color-canvas: hsl(40, 20%, 98%);
+  --color-surface: hsl(0, 0%, 100%);
+  --color-border: hsl(220, 13%, 88%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--color-canvas);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  border-radius: 8px;
+}
+
+.btn-primary,
+.btn-secondary,
+.icon-button,
+.app-card,
+.stat-card,
+.mobile-tab,
+.nav-button {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 1px solid var(--color-brand);
+  background: var(--color-brand);
+  padding: 0.85rem 1.1rem;
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 12px 24px rgba(79, 70, 229, 0.22);
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.icon-button:hover,
+.mobile-tab:hover {
+  transform: scale(1.02);
+  box-shadow: 0 12px 26px rgba(30, 41, 59, 0.14);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid var(--color-border);
+  background: white;
+  padding: 0.8rem 1rem;
+  font-weight: 700;
+  color: hsl(222, 47%, 11%);
+}
+
+.nav-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid transparent;
+  padding: 0.82rem 0.9rem;
+  text-align: left;
+  font-weight: 700;
+  color: hsl(215, 20%, 34%);
+}
+
+.nav-button:hover,
+.nav-button-active {
+  border-color: var(--color-border);
+  background: hsl(245, 78%, 97%);
+  color: var(--color-brand);
+  transform: translateY(-1px);
+}
+
+.mobile-tab {
+  display: inline-flex;
+  min-width: max-content;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--color-border);
+  background: white;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.mobile-tab-active {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.app-card,
+.form-panel,
+.calendar-panel,
+.stat-card {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 0 14px 36px rgba(30, 41, 59, 0.08);
+}
+
+.app-card {
+  padding: 1.25rem;
+}
+
+.app-card:hover,
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 42px rgba(30, 41, 59, 0.12);
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1rem;
+  font-weight: 700;
+}
+
+.form-panel {
+  padding: 1.25rem;
+}
+
+.calendar-panel {
+  padding: 1rem;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.input {
+  margin-top: 0.45rem;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: white;
+  padding: 0.78rem 0.85rem;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px hsla(245, 78%, 58%, 0.15);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: hsl(215, 16%, 34%);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.icon-button {
+  display: inline-grid;
+  min-height: 2.25rem;
+  min-width: 2.25rem;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  background: white;
+}
+
+.request-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--color-border);
+  background: hsl(40, 20%, 98%);
+  padding: 0.85rem;
+}
+
+.fc {
+  --fc-border-color: var(--color-border);
+  --fc-button-bg-color: var(--color-brand);
+  --fc-button-border-color: var(--color-brand);
+  --fc-button-hover-bg-color: hsl(245, 68%, 50%);
+  --fc-button-hover-border-color: hsl(245, 68%, 50%);
+  --fc-event-bg-color: var(--color-brand);
+  --fc-event-border-color: var(--color-brand);
+  font-size: 0.9rem;
+}
+
+.fc .fc-toolbar {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.fc .fc-button {
+  border-radius: 8px;
+  box-shadow: none;
+  text-transform: capitalize;
+}
