@@ -1,11 +1,20 @@
 import { Booking } from "../models/Booking.js";
 import { Room } from "../models/Room.js";
+import { bookingRequestEmail, bookingStatusEmail } from "../services/email.service.js";
 import { findBookingConflict } from "../utils/bookingConflicts.js";
 import { logActivity } from "../utils/logActivity.js";
 import { normalizeDateOnly } from "../utils/validators.js";
 
 function populateBooking(query) {
   return query.populate("room", "name type location capacity").populate("user", "name email");
+}
+
+async function trySendEmail(task) {
+  try {
+    await task();
+  } catch (error) {
+    console.error("Email notification failed:", error.message);
+  }
 }
 
 export async function listBookings(req, res, next) {
@@ -57,6 +66,8 @@ export async function createBooking(req, res, next) {
       message: `${req.user.name} requested ${room.name} from ${booking.startTime} to ${booking.endTime}.`
     });
 
+    await trySendEmail(() => bookingRequestEmail({ booking, room, user: req.user }));
+
     res.status(201).json(await populateBooking(Booking.findById(booking._id)));
   } catch (error) {
     next(error);
@@ -72,7 +83,7 @@ export async function updateBookingStatus(req, res, next) {
       throw error;
     }
 
-    const booking = await Booking.findById(req.params.id).populate("room", "name");
+    const booking = await Booking.findById(req.params.id).populate("room", "name").populate("user", "name email");
     if (!booking) {
       const error = new Error("Booking not found.");
       error.statusCode = 404;
@@ -109,6 +120,8 @@ export async function updateBookingStatus(req, res, next) {
       message: `${req.user.name} ${status} booking for ${booking.room.name}.`,
       metadata: { rejectionReason: booking.rejectionReason }
     });
+
+    await trySendEmail(() => bookingStatusEmail({ booking, room: booking.room, user: booking.user }));
 
     res.json(await populateBooking(Booking.findById(booking._id)));
   } catch (error) {

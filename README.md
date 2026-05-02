@@ -15,6 +15,9 @@ ReserveIT is a full-stack web application that helps users reserve rooms while g
 - ✅ **Admin Approval Workflow** for pending, approved, and rejected bookings
 - 🗓️ **FullCalendar Schedule View** for approved reservations
 - 📊 **Reports and Activity Logs** for system tracking
+- 📧 **Email Notifications** for booking requests and approval decisions
+- 📄 **CSV and PDF Report Exports** for admin booking reports
+- ⏰ **Booking Reminders** for upcoming approved bookings
 
 ---
 
@@ -37,6 +40,8 @@ ReserveIT is a full-stack web application that helps users reserve rooms while g
 - JWT
 - bcryptjs
 - Zod
+- Nodemailer
+- node-cron
 
 ---
 
@@ -103,9 +108,18 @@ JWT_SECRET=your_long_random_secret
 JWT_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:5173
 VITE_API_URL=http://localhost:5000/api
+EMAIL_NOTIFICATIONS_ENABLED=false
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM=ReserveIT <your_email@gmail.com>
 ```
 
 For production, replace `MONGO_URI`, `JWT_SECRET`, `CLIENT_URL`, and `VITE_API_URL` with your deployed values.
+
+Set `EMAIL_NOTIFICATIONS_ENABLED=true` only after adding valid SMTP credentials. For Gmail, use an app password instead of your regular account password.
 
 ---
 
@@ -156,6 +170,25 @@ Email: user@reserveit.local
 Password: user123
 ```
 
+### Email Notifications and Reminders
+
+Email notifications are sent when:
+
+- A user submits a booking request
+- An admin approves or rejects a booking
+- An approved booking starts within the next hour
+
+The reminder scheduler starts automatically with the backend and checks upcoming bookings every hour.
+
+### Export Reports
+
+Admins can open the **Reports** page and use:
+
+- `Export CSV`
+- `Export PDF`
+
+The exported report includes booking user, room, date, time, status, and purpose.
+
 ---
 
 ## 📅 Booking Logic
@@ -199,6 +232,13 @@ JWT_SECRET=your_long_random_secret
 JWT_EXPIRES_IN=7d
 CLIENT_URL=https://your-frontend-domain.com
 VITE_API_URL=https://your-backend-domain.com/api
+EMAIL_NOTIFICATIONS_ENABLED=true
+SMTP_HOST=your_smtp_host
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_username
+SMTP_PASS=your_smtp_password
+SMTP_FROM=ReserveIT <no-reply@your-domain.com>
 ```
 
 After deploying the backend, update the frontend `VITE_API_URL` value to point to the deployed backend API.
@@ -235,11 +275,14 @@ Make sure:
 
 ## 🔮 Future Improvements
 
-- Email notifications for booking approval or rejection
-- Recurring room reservations
-- Advanced room search and filtering
-- Report export as CSV or PDF
-- User profile management
+- Recurring room reservations for weekly or monthly room usage
+- Advanced room search with filters for capacity, type, amenities, and availability
+- User profile management with password update and department details
+- Admin analytics with room utilization charts and peak-hour insights
+- In-app notification center for booking updates and reminders
+- Calendar drag-and-drop rescheduling for admins
+- Audit log filtering by user, action, room, and date range
+- Optional dark mode using the same design system
 
 ---
 

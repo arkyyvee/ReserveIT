@@ -11,7 +11,9 @@ const bookingSchema = new mongoose.Schema(
     status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     reviewedAt: { type: Date },
-    rejectionReason: { type: String, trim: true }
+    rejectionReason: { type: String, trim: true },
+    reminderSent: { type: Boolean, default: false },
+    reminderSentAt: { type: Date }
   },
   { timestamps: true }
 );

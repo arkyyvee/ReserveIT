@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
+  Bell,
   BookOpenCheck,
   Building2,
   CalendarDays,
-  Check,
+  ChevronDown,
   ClipboardList,
   Clock3,
   DoorOpen,
+  Download,
+  FileText,
   History,
   LayoutDashboard,
   LogOut,
+  Menu,
   Pencil,
   Plus,
   ShieldCheck,
@@ -23,9 +27,11 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { api, setAuthToken } from "./api";
+import { exportBookingsCSV, exportBookingsPDF } from "./services/exportReports";
 import { formatDate, roomTypes, statusClass } from "./utils";
 
 const navItems = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard, roles: ["user", "admin"] },
   { id: "rooms", label: "Rooms", icon: DoorOpen, roles: ["user", "admin"] },
   { id: "book", label: "New booking", icon: CalendarDays, roles: ["user", "admin"] },
   { id: "history", label: "Booking history", icon: History, roles: ["user", "admin"] },
@@ -51,10 +57,24 @@ const initialRoom = {
   isActive: true
 };
 
+function apiErrorMessage(error, fallback) {
+  const data = error.response?.data;
+  const details = data?.details
+    ? Object.entries(data.details)
+        .flatMap(([field, messages]) => messages.map((message) => `${field}: ${message}`))
+        .join(" ")
+    : "";
+
+  return details || data?.message || fallback;
+}
+
 function App() {
   const stored = JSON.parse(localStorage.getItem("reserveit-session") || "null");
+  const storedSidebarExpanded = localStorage.getItem("reserveit-sidebar-expanded") === "true";
   const [session, setSession] = useState(stored);
-  const [view, setView] = useState("rooms");
+  const [view, setView] = useState("overview");
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(storedSidebarExpanded);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [report, setReport] = useState(null);
@@ -81,7 +101,7 @@ function App() {
         setLogs(logRes.data);
       }
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to load ReserveIT data.");
+      setMessage(apiErrorMessage(error, "Unable to load ReserveIT data."));
     } finally {
       setLoading(false);
     }
@@ -90,7 +110,7 @@ function App() {
   function saveSession(data) {
     localStorage.setItem("reserveit-session", JSON.stringify(data));
     setSession(data);
-    setView("rooms");
+    setView("overview");
   }
 
   function logout() {
@@ -104,56 +124,60 @@ function App() {
   }
 
   const visibleNav = navItems.filter((item) => item.roles.includes(session.user.role));
+  const activeItem = visibleNav.find((item) => item.id === view) || visibleNav[0];
+  const ActiveIcon = activeItem.icon;
+
+  function toggleSidebar() {
+    const next = !isSidebarExpanded;
+    setIsSidebarExpanded(next);
+    localStorage.setItem("reserveit-sidebar-expanded", String(next));
+  }
+
+  function changeView(nextView) {
+    setView(nextView);
+    setIsMobileOpen(false);
+  }
 
   return (
     <div className="min-h-screen bg-canvas text-slate-950">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-line bg-surface px-5 py-6 shadow-soft lg:block">
-        <Brand />
-        <nav className="mt-8 space-y-2">
-          {visibleNav.map((item) => (
-            <NavButton key={item.id} item={item} active={view === item.id} onClick={() => setView(item.id)} />
-          ))}
-        </nav>
-        <button className="btn-secondary mt-10 w-full justify-center" onClick={logout}>
-          <LogOut size={18} />
-          Sign out
-        </button>
-      </aside>
+      <Sidebar
+        items={visibleNav}
+        activeView={view}
+        isExpanded={isSidebarExpanded}
+        isMobileOpen={isMobileOpen}
+        onToggle={toggleSidebar}
+        onCloseMobile={() => setIsMobileOpen(false)}
+        onNavigate={changeView}
+        onLogout={logout}
+      />
 
-      <main className="lg:pl-72">
-        <header className="border-b border-line bg-surface px-5 py-4 shadow-sm lg:px-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-brand">Smart room resource booking</p>
-              <h1 className="mt-1 text-2xl font-bold">ReserveIT</h1>
+      <main className={`app-main ${isSidebarExpanded ? "app-main-expanded" : ""}`}>
+        <header className="topbar">
+          <div className="flex items-center gap-3">
+            <button className="icon-button lg:hidden" onClick={() => setIsMobileOpen(true)} aria-label="Open navigation">
+              <Menu size={19} />
+            </button>
+            <div className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-white text-brand shadow-soft">
+              <ActiveIcon size={20} />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="badge border-line bg-white text-slate-700">
-                <UserRound size={15} />
-                {session.user.name}
-              </span>
-              <span className="badge border-line bg-white capitalize text-slate-700">{session.user.role}</span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-brand">ReserveIT workspace</p>
+              <h1 className="text-2xl font-bold tracking-tight">{activeItem.label}</h1>
             </div>
           </div>
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-            {visibleNav.map((item) => (
-              <button
-                key={item.id}
-                className={`mobile-tab ${view === item.id ? "mobile-tab-active" : ""}`}
-                onClick={() => setView(item.id)}
-              >
-                <item.icon size={17} />
-                {item.label}
-              </button>
-            ))}
-            <button className="mobile-tab" onClick={logout}>
-              <LogOut size={17} />
-              Sign out
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="icon-button" aria-label="Notifications">
+              <Bell size={17} />
             </button>
+            <span className="badge border-line bg-white text-slate-700">
+              <UserRound size={15} />
+              {session.user.name}
+            </span>
+            <span className="badge border-line bg-white capitalize text-slate-700">{session.user.role}</span>
           </div>
         </header>
 
-        <section className="px-5 py-6 lg:px-8">
+        <section className="content-shell">
           {message && (
             <div className="mb-5 flex items-center justify-between border border-line bg-white px-4 py-3 text-sm shadow-soft">
               <span>{message}</span>
@@ -163,6 +187,14 @@ function App() {
             </div>
           )}
           {loading && <p className="mb-4 text-sm text-slate-600">Loading workspace data...</p>}
+          {view === "overview" && (
+            <OverviewView
+              rooms={rooms}
+              bookings={bookings}
+              role={session.user.role}
+              onNavigate={setView}
+            />
+          )}
           {view === "rooms" && <RoomsView rooms={rooms} />}
           {view === "book" && <BookingForm rooms={rooms} onSaved={refreshData} setMessage={setMessage} />}
           {view === "history" && <BookingHistory bookings={bookings} />}
@@ -175,7 +207,7 @@ function App() {
             />
           )}
           {view === "calendar" && <CalendarView bookings={bookings} />}
-          {view === "reports" && <ReportsView report={report} logs={logs} />}
+          {view === "reports" && <ReportsView report={report} logs={logs} bookings={bookings} />}
         </section>
       </main>
     </div>
@@ -196,11 +228,62 @@ function Brand() {
   );
 }
 
-function NavButton({ item, active, onClick }) {
+function Sidebar({ items, activeView, isExpanded, isMobileOpen, onToggle, onCloseMobile, onNavigate, onLogout }) {
   return (
-    <button className={`nav-button ${active ? "nav-button-active" : ""}`} onClick={onClick}>
-      <item.icon size={19} />
-      {item.label}
+    <>
+      <div className={`sidebar-scrim ${isMobileOpen ? "sidebar-scrim-open" : ""}`} onClick={onCloseMobile} />
+      <aside
+        className={`sidebar ${isExpanded ? "sidebar-expanded" : ""} ${isMobileOpen ? "sidebar-mobile-open" : ""}`}
+      >
+        <div className="sidebar-header">
+          <div className="sidebar-app-mark" title="ReserveIT">
+            <Building2 size={20} />
+          </div>
+          <div className="sidebar-app-copy">
+            <p className="sidebar-app-name">ReserveIT</p>
+            <p className="sidebar-app-subtitle">Room booking</p>
+          </div>
+          <button className="sidebar-icon-button hidden lg:grid" onClick={onToggle} aria-label="Toggle navigation">
+            <Menu size={19} />
+          </button>
+          <button className="icon-button lg:hidden" onClick={onCloseMobile} aria-label="Close navigation">
+            <X size={17} />
+          </button>
+        </div>
+
+        <nav className="sidebar-nav">
+          {items.map((item) => (
+            <NavButton
+              key={item.id}
+              item={item}
+              active={activeView === item.id}
+              expanded={isExpanded}
+              onClick={() => onNavigate(item.id)}
+            />
+          ))}
+        </nav>
+
+        <div className="sidebar-bottom">
+          <button className="nav-button" onClick={onLogout} title="Sign out" aria-label="Sign out">
+            <LogOut size={19} />
+            <span className="nav-label">Sign out</span>
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function NavButton({ item, active, expanded, onClick }) {
+  return (
+    <button
+      className={`nav-button ${active ? "nav-button-active" : ""}`}
+      onClick={onClick}
+      title={expanded ? undefined : item.label}
+      aria-label={item.label}
+    >
+      <item.icon size={20} />
+      <span className="nav-label">{item.label}</span>
     </button>
   );
 }
@@ -218,7 +301,7 @@ function AuthScreen({ onAuth }) {
       const { data } = await api.post(`/auth/${mode}`, payload);
       onAuth(data);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Authentication failed.");
+      setError(apiErrorMessage(requestError, "Authentication failed."));
     }
   }
 
@@ -233,14 +316,6 @@ function AuthScreen({ onAuth }) {
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
             Manage classrooms, laboratories, and meeting rooms with approval workflows, logs, and calendar visibility.
           </p>
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {["JWT authentication", "Admin approvals", "Overlap detection"].map((item) => (
-              <div key={item} className="stat-card">
-                <Check className="text-brand" size={20} />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
       <section className="flex items-center border-l border-line bg-surface px-6 py-10 shadow-soft">
@@ -278,12 +353,82 @@ function AuthScreen({ onAuth }) {
   );
 }
 
-function Field({ label, value, onChange, type = "text" }) {
+function Field({ label, value, onChange, type = "text", min }) {
   return (
     <label className="block">
       <span className="form-label">{label}</span>
-      <input className="input" type={type} value={value} onChange={(event) => onChange(event.target.value)} required />
+      <input className="input" type={type} value={value} min={min} onChange={(event) => onChange(event.target.value)} required />
     </label>
+  );
+}
+
+function SelectField({ label, value, onChange, children, required = true }) {
+  return (
+    <label className="block">
+      <span className="form-label">{label}</span>
+      <div className="select-shell">
+        <select className="input select-input" value={value} onChange={(event) => onChange(event.target.value)} required={required}>
+          {children}
+        </select>
+        <ChevronDown className="select-icon" size={18} />
+      </div>
+    </label>
+  );
+}
+
+function OverviewView({ rooms, bookings, role, onNavigate }) {
+  const pending = bookings.filter((booking) => booking.status === "pending").length;
+  const approved = bookings.filter((booking) => booking.status === "approved").length;
+  const nextBooking = bookings
+    .filter((booking) => booking.status === "approved" && new Date(booking.date) >= new Date(new Date().toDateString()))
+    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))[0];
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle icon={LayoutDashboard} title="Workspace overview" subtitle="A quick view of rooms, requests, and upcoming schedules." />
+      <div className="grid gap-4 md:grid-cols-3">
+        <Metric label="Available rooms" value={rooms.length} />
+        <Metric label="Pending requests" value={pending} />
+        <Metric label="Approved bookings" value={approved} />
+      </div>
+      <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+        <section className="form-panel">
+          <h3 className="panel-title">
+            <Bell size={20} />
+            Upcoming reminder
+          </h3>
+          {nextBooking ? (
+            <div className="mt-4 request-row">
+              <div>
+                <p className="font-semibold">{nextBooking.room?.name}</p>
+                <p className="text-sm text-slate-600">
+                  {formatDate(nextBooking.date)} from {nextBooking.startTime} to {nextBooking.endTime}
+                </p>
+              </div>
+              <span className={`badge capitalize ${statusClass(nextBooking.status)}`}>{nextBooking.status}</span>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-600">No approved upcoming booking yet.</p>
+          )}
+        </section>
+        <section className="form-panel">
+          <h3 className="panel-title">
+            <CalendarDays size={20} />
+            Quick actions
+          </h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <button className="btn-primary" onClick={() => onNavigate("book")}>
+              <Plus size={18} />
+              New booking
+            </button>
+            <button className="btn-secondary justify-center" onClick={() => onNavigate(role === "admin" ? "admin" : "history")}>
+              <History size={18} />
+              {role === "admin" ? "Review queue" : "View history"}
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -318,6 +463,7 @@ function RoomsView({ rooms }) {
 
 function BookingForm({ rooms, onSaved, setMessage }) {
   const [form, setForm] = useState(initialBooking);
+  const today = new Date().toISOString().slice(0, 10);
 
   async function submit(event) {
     event.preventDefault();
@@ -327,7 +473,7 @@ function BookingForm({ rooms, onSaved, setMessage }) {
       setMessage("Booking request submitted for admin approval.");
       onSaved();
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to create booking.");
+      setMessage(apiErrorMessage(error, "Unable to create booking."));
     }
   }
 
@@ -335,18 +481,15 @@ function BookingForm({ rooms, onSaved, setMessage }) {
     <div>
       <SectionTitle icon={CalendarDays} title="Request a room" subtitle="Choose a time slot and purpose." />
       <form className="form-panel grid gap-4 lg:grid-cols-2" onSubmit={submit}>
-        <label>
-          <span className="form-label">Room</span>
-          <select className="input" value={form.room} onChange={(event) => setForm({ ...form, room: event.target.value })} required>
-            <option value="">Select a room</option>
-            {rooms.map((room) => (
-              <option key={room._id} value={room._id}>
-                {room.name} - {roomTypes[room.type]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Field label="Date" type="date" value={form.date} onChange={(date) => setForm({ ...form, date })} />
+        <SelectField label="Room" value={form.room} onChange={(room) => setForm({ ...form, room })}>
+          <option value="">Select a room</option>
+          {rooms.map((room) => (
+            <option key={room._id} value={room._id}>
+              {room.name} - {roomTypes[room.type]}
+            </option>
+          ))}
+        </SelectField>
+        <Field label="Date" type="date" min={today} value={form.date} onChange={(date) => setForm({ ...form, date })} />
         <Field label="Start time" type="time" value={form.startTime} onChange={(startTime) => setForm({ ...form, startTime })} />
         <Field label="End time" type="time" value={form.endTime} onChange={(endTime) => setForm({ ...form, endTime })} />
         <label className="lg:col-span-2">
@@ -397,7 +540,7 @@ function ApprovalQueue({ bookings, onSaved, setMessage }) {
       setMessage(`Booking ${status}.`);
       onSaved();
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to update booking.");
+      setMessage(apiErrorMessage(error, "Unable to update booking."));
     }
   }
 
@@ -458,7 +601,7 @@ function RoomManager({ rooms, onSaved, setMessage }) {
       setMessage(editingId ? "Room updated." : "Room added.");
       onSaved();
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to save room.");
+      setMessage(apiErrorMessage(error, "Unable to save room."));
     }
   }
 
@@ -480,7 +623,7 @@ function RoomManager({ rooms, onSaved, setMessage }) {
       setMessage("Room removed.");
       onSaved();
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to delete room.");
+      setMessage(apiErrorMessage(error, "Unable to delete room."));
     }
   }
 
@@ -492,14 +635,11 @@ function RoomManager({ rooms, onSaved, setMessage }) {
       </h3>
       <form className="mt-4 grid gap-3" onSubmit={saveRoom}>
         <Field label="Room name" value={form.name} onChange={(name) => setForm({ ...form, name })} />
-        <label>
-          <span className="form-label">Type</span>
-          <select className="input" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>
-            <option value="classroom">Classroom</option>
-            <option value="laboratory">Laboratory</option>
-            <option value="meeting">Meeting room</option>
-          </select>
-        </label>
+        <SelectField label="Type" value={form.type} onChange={(type) => setForm({ ...form, type })}>
+          <option value="classroom">Classroom</option>
+          <option value="laboratory">Laboratory</option>
+          <option value="meeting">Meeting room</option>
+        </SelectField>
         <Field label="Location" value={form.location} onChange={(location) => setForm({ ...form, location })} />
         <Field label="Capacity" type="number" value={form.capacity} onChange={(capacity) => setForm({ ...form, capacity })} />
         <Field label="Amenities, separated by commas" value={form.amenities} onChange={(amenities) => setForm({ ...form, amenities })} />
@@ -577,10 +717,20 @@ function CalendarView({ bookings }) {
   );
 }
 
-function ReportsView({ report, logs }) {
+function ReportsView({ report, logs, bookings }) {
   return (
     <div className="space-y-8">
       <SectionTitle icon={BarChart3} title="Reports and logs" subtitle="Usage summaries and recent activity." />
+      <div className="flex flex-wrap gap-3">
+        <button className="btn-primary" onClick={() => exportBookingsCSV(bookings)}>
+          <Download size={18} />
+          Export CSV
+        </button>
+        <button className="btn-secondary" onClick={() => exportBookingsPDF(bookings)}>
+          <FileText size={18} />
+          Export PDF
+        </button>
+      </div>
       <div className="grid gap-4 md:grid-cols-4">
         <Metric label="Rooms" value={report?.rooms || 0} />
         <Metric label="Pending" value={report?.counts?.pending || 0} />

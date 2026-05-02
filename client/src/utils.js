@@ -12,7 +12,7 @@ export function formatDate(value) {
 
 export function statusClass(status) {
   return {
-    pending: "border-amber-200 bg-amber-50 text-amber-800",
+    pending: "border-line bg-canvas text-slate-700",
     approved: "border-emerald-200 bg-emerald-50 text-emerald-800",
     rejected: "border-rose-200 bg-rose-50 text-rose-800"
   }[status];
