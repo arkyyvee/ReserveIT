@@ -8,6 +8,8 @@ const bookingSchema = new mongoose.Schema(
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
     purpose: { type: String, required: true, trim: true },
+    recurrence: { type: String, enum: ["none", "weekly", "monthly"], default: "none" },
+    seriesId: { type: String, trim: true },
     status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     reviewedAt: { type: Date },

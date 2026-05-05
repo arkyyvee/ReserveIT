@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { Booking } from "../models/Booking.js";
 import { bookingReminderEmail } from "./email.service.js";
+import { createNotification } from "./notification.service.js";
 
 function dateTimeFromBooking(booking) {
   const [hours, minutes] = booking.startTime.split(":").map(Number);
@@ -28,6 +29,13 @@ export async function sendUpcomingBookingReminders() {
     const start = dateTimeFromBooking(booking);
     if (start >= now && start <= windowEnd && booking.user?.email) {
       await bookingReminderEmail({ booking });
+      await createNotification({
+        user: booking.user._id,
+        booking: booking._id,
+        title: "Upcoming booking reminder",
+        message: `${booking.room.name} starts at ${booking.startTime}.`,
+        type: "reminder"
+      });
       booking.reminderSent = true;
       booking.reminderSentAt = new Date();
       await booking.save();

@@ -13,6 +13,7 @@ function userPayload(user) {
     id: user._id,
     name: user.name,
     email: user.email,
+    department: user.department,
     role: user.role
   };
 }
@@ -66,4 +67,31 @@ export async function login(req, res, next) {
 
 export async function me(req, res) {
   res.json({ user: userPayload(req.user) });
+}
+
+export async function updateProfile(req, res, next) {
+  try {
+    req.user.name = req.body.name;
+    req.user.department = req.body.department || "";
+    await req.user.save();
+    res.json({ user: userPayload(req.user) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updatePassword(req, res, next) {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!(await user.comparePassword(req.body.currentPassword))) {
+      const error = new Error("Current password is incorrect.");
+      error.statusCode = 400;
+      throw error;
+    }
+    user.password = req.body.newPassword;
+    await user.save();
+    res.json({ message: "Password updated." });
+  } catch (error) {
+    next(error);
+  }
 }

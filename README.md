@@ -18,6 +18,13 @@ ReserveIT is a full-stack web application that helps users reserve rooms while g
 - 📧 **Email Notifications** for booking requests and approval decisions
 - 📄 **CSV and PDF Report Exports** for admin booking reports
 - ⏰ **Booking Reminders** for upcoming approved bookings
+- 🔁 **Recurring Reservations** for weekly or monthly room usage
+- 🔎 **Advanced Room Search** by capacity, type, amenities, and availability
+- 👤 **Profile Management** with department details and password updates
+- 📈 **Admin Analytics** for utilization and peak-hour insights
+- 🔔 **In-app Notifications** for booking updates and reminders
+- 🧾 **Audit Log Filtering** by action, entity, and date range
+- 🌙 **Dark Mode** using the same design system
 
 ---
 
@@ -205,6 +212,10 @@ existing.endTime > requested.startTime
 
 Only `pending` and `approved` bookings block new reservations. Rejected bookings do not block future bookings.
 
+Recurring reservations create multiple pending booking requests from the same form. Each generated date is checked for conflicts before the series is saved.
+
+Admins can drag approved calendar events to reschedule bookings. The backend re-checks conflicts before saving the new time.
+
 ---
 
 ## 🌐 Deployment
@@ -275,14 +286,11 @@ Make sure:
 
 ## 🔮 Future Improvements
 
-- Recurring room reservations for weekly or monthly room usage
-- Advanced room search with filters for capacity, type, amenities, and availability
-- User profile management with password update and department details
-- Admin analytics with room utilization charts and peak-hour insights
-- In-app notification center for booking updates and reminders
-- Calendar drag-and-drop rescheduling for admins
-- Audit log filtering by user, action, room, and date range
-- Optional dark mode using the same design system
+- Role invitation flow for creating admin accounts without direct database edits
+- Room maintenance blocks for unavailable rooms and equipment servicing
+- Department-level booking quotas and approval rules
+- More detailed analytics exports for utilization and peak-hour reports
+- Notification preferences per user
 
 ---
 

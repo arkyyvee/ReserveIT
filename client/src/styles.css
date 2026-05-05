@@ -9,6 +9,12 @@
   --color-border: hsl(220, 13%, 88%);
 }
 
+:root.dark {
+  --color-canvas: hsl(222, 47%, 8%);
+  --color-surface: hsl(222, 32%, 12%);
+  --color-border: hsl(217, 19%, 24%);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -19,6 +25,10 @@ body {
   background: var(--color-canvas);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.dark body {
+  color: hsl(210, 40%, 96%);
 }
 
 .app-main {
@@ -155,6 +165,21 @@ body {
   padding: 1rem 1.5rem;
   backdrop-filter: blur(16px);
   box-shadow: 0 10px 30px rgba(30, 41, 59, 0.05);
+}
+
+.notification-dot {
+  position: absolute;
+  right: -0.35rem;
+  top: -0.35rem;
+  display: grid;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(245, 78%, 58%);
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 800;
 }
 
 .content-shell {
@@ -407,6 +432,11 @@ tbody tr {
     transform 160ms ease;
 }
 
+.left-icon {
+  left: 0.95rem;
+  right: auto;
+}
+
 .select-shell:focus-within .select-icon {
   color: var(--color-brand);
   transform: translateY(-50%) rotate(180deg);
@@ -458,6 +488,60 @@ tbody tr {
   background: white;
   box-shadow: 0 12px 26px rgba(30, 41, 59, 0.08);
   transform: translateY(-2px);
+}
+
+.unread-row {
+  border-color: hsl(245, 78%, 82%);
+  background: hsl(245, 78%, 98%);
+}
+
+.bar-track {
+  margin-top: 0.45rem;
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: hsl(220, 13%, 91%);
+}
+
+.bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.dark .bg-white,
+.dark .form-panel,
+.dark .app-card,
+.dark .calendar-panel,
+.dark .stat-card,
+.dark .request-row,
+.dark .topbar,
+.dark .input,
+.dark .btn-secondary,
+.dark .icon-button,
+.dark .sidebar-icon-button {
+  background: var(--color-surface);
+  color: hsl(210, 40%, 96%);
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-700,
+.dark .form-label {
+  color: hsl(215, 20%, 72%);
+}
+
+.dark .border-line,
+.dark .input,
+.dark .request-row,
+.dark .form-panel,
+.dark .app-card {
+  border-color: var(--color-border);
+}
+
+.dark .sidebar {
+  background: hsl(222, 36%, 10%);
 }
 
 tbody tr:hover {

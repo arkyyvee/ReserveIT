@@ -5,20 +5,27 @@ import {
   BookOpenCheck,
   Building2,
   CalendarDays,
+  Check,
   ChevronDown,
   ClipboardList,
   Clock3,
   DoorOpen,
   Download,
   FileText,
+  Filter,
   History,
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Pencil,
   Plus,
+  Save,
+  Search,
   ShieldCheck,
+  Sun,
   Trash2,
+  UserCog,
   UserRound,
   X
 } from "lucide-react";
@@ -35,6 +42,8 @@ const navItems = [
   { id: "rooms", label: "Rooms", icon: DoorOpen, roles: ["user", "admin"] },
   { id: "book", label: "New booking", icon: CalendarDays, roles: ["user", "admin"] },
   { id: "history", label: "Booking history", icon: History, roles: ["user", "admin"] },
+  { id: "notifications", label: "Notifications", icon: Bell, roles: ["user", "admin"] },
+  { id: "profile", label: "Profile", icon: UserCog, roles: ["user", "admin"] },
   { id: "admin", label: "Admin control", icon: ShieldCheck, roles: ["admin"] },
   { id: "calendar", label: "Calendar", icon: Clock3, roles: ["admin"] },
   { id: "reports", label: "Reports", icon: BarChart3, roles: ["admin"] }
@@ -45,7 +54,9 @@ const initialBooking = {
   date: "",
   startTime: "08:00",
   endTime: "09:00",
-  purpose: ""
+  purpose: "",
+  recurrence: "none",
+  occurrenceCount: 1
 };
 
 const initialRoom = {
@@ -79,6 +90,8 @@ function App() {
   const [bookings, setBookings] = useState([]);
   const [report, setReport] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [isDark, setIsDark] = useState(localStorage.getItem("reserveit-theme") === "dark");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -89,12 +102,22 @@ function App() {
     }
   }, [session]);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+    localStorage.setItem("reserveit-theme", isDark ? "dark" : "light");
+  }, [isDark]);
+
   async function refreshData(role = session?.user.role) {
     setLoading(true);
     try {
-      const [roomRes, bookingRes] = await Promise.all([api.get("/rooms"), api.get("/bookings")]);
+      const [roomRes, bookingRes, notificationRes] = await Promise.all([
+        api.get("/rooms"),
+        api.get("/bookings"),
+        api.get("/notifications")
+      ]);
       setRooms(roomRes.data);
       setBookings(bookingRes.data);
+      setNotifications(notificationRes.data);
       if (role === "admin") {
         const [reportRes, logRes] = await Promise.all([api.get("/reports/dashboard"), api.get("/logs")]);
         setReport(reportRes.data);
@@ -119,6 +142,12 @@ function App() {
     setSession(null);
   }
 
+  function updateStoredUser(user) {
+    const next = { ...session, user };
+    localStorage.setItem("reserveit-session", JSON.stringify(next));
+    setSession(next);
+  }
+
   if (!session) {
     return <AuthScreen onAuth={saveSession} />;
   }
@@ -126,6 +155,7 @@ function App() {
   const visibleNav = navItems.filter((item) => item.roles.includes(session.user.role));
   const activeItem = visibleNav.find((item) => item.id === view) || visibleNav[0];
   const ActiveIcon = activeItem.icon;
+  const unreadCount = notifications.filter((notification) => !notification.readAt).length;
 
   function toggleSidebar() {
     const next = !isSidebarExpanded;
@@ -166,8 +196,12 @@ function App() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button className="icon-button" aria-label="Notifications">
+            <button className="icon-button relative" onClick={() => setView("notifications")} aria-label="Notifications">
               <Bell size={17} />
+              {unreadCount > 0 && <span className="notification-dot">{unreadCount}</span>}
+            </button>
+            <button className="icon-button" onClick={() => setIsDark(!isDark)} aria-label="Toggle dark mode">
+              {isDark ? <Sun size={17} /> : <Moon size={17} />}
             </button>
             <span className="badge border-line bg-white text-slate-700">
               <UserRound size={15} />
@@ -195,9 +229,15 @@ function App() {
               onNavigate={setView}
             />
           )}
-          {view === "rooms" && <RoomsView rooms={rooms} />}
+          {view === "rooms" && <RoomsView rooms={rooms} bookings={bookings} />}
           {view === "book" && <BookingForm rooms={rooms} onSaved={refreshData} setMessage={setMessage} />}
           {view === "history" && <BookingHistory bookings={bookings} />}
+          {view === "notifications" && (
+            <NotificationsView notifications={notifications} onSaved={refreshData} setMessage={setMessage} />
+          )}
+          {view === "profile" && (
+            <ProfileView user={session.user} onUserSaved={updateStoredUser} setMessage={setMessage} />
+          )}
           {view === "admin" && (
             <AdminPanel
               rooms={rooms}
@@ -206,8 +246,12 @@ function App() {
               setMessage={setMessage}
             />
           )}
-          {view === "calendar" && <CalendarView bookings={bookings} />}
-          {view === "reports" && <ReportsView report={report} logs={logs} bookings={bookings} />}
+          {view === "calendar" && (
+            <CalendarView bookings={bookings} role={session.user.role} onSaved={refreshData} setMessage={setMessage} />
+          )}
+          {view === "reports" && (
+            <ReportsView report={report} logs={logs} bookings={bookings} setLogs={setLogs} setMessage={setMessage} />
+          )}
         </section>
       </main>
     </div>
@@ -353,11 +397,11 @@ function AuthScreen({ onAuth }) {
   );
 }
 
-function Field({ label, value, onChange, type = "text", min }) {
+function Field({ label, value, onChange, type = "text", min, required = true }) {
   return (
     <label className="block">
       <span className="form-label">{label}</span>
-      <input className="input" type={type} value={value} min={min} onChange={(event) => onChange(event.target.value)} required />
+      <input className="input" type={type} value={value} min={min} onChange={(event) => onChange(event.target.value)} required={required} />
     </label>
   );
 }
@@ -373,6 +417,18 @@ function SelectField({ label, value, onChange, children, required = true }) {
         <ChevronDown className="select-icon" size={18} />
       </div>
     </label>
+  );
+}
+
+function roomAvailable(roomId, bookings, date, startTime, endTime) {
+  if (!date || !startTime || !endTime) return true;
+  return !bookings.some(
+    (booking) =>
+      booking.room?._id === roomId &&
+      ["pending", "approved"].includes(booking.status) &&
+      booking.date?.slice(0, 10) === date &&
+      booking.startTime < endTime &&
+      booking.endTime > startTime
   );
 }
 
@@ -432,12 +488,73 @@ function OverviewView({ rooms, bookings, role, onNavigate }) {
   );
 }
 
-function RoomsView({ rooms }) {
+function RoomsView({ rooms, bookings }) {
+  const [filters, setFilters] = useState({
+    search: "",
+    type: "all",
+    minCapacity: "",
+    amenity: "",
+    date: "",
+    startTime: "08:00",
+    endTime: "09:00"
+  });
+  const amenities = [...new Set(rooms.flatMap((room) => room.amenities || []))];
+  const filteredRooms = rooms.filter((room) => {
+    const matchesSearch = `${room.name} ${room.location}`.toLowerCase().includes(filters.search.toLowerCase());
+    const matchesType = filters.type === "all" || room.type === filters.type;
+    const matchesCapacity = !filters.minCapacity || room.capacity >= Number(filters.minCapacity);
+    const matchesAmenity = !filters.amenity || room.amenities?.includes(filters.amenity);
+    const matchesAvailability = roomAvailable(room._id, bookings, filters.date, filters.startTime, filters.endTime);
+    return matchesSearch && matchesType && matchesCapacity && matchesAmenity && matchesAvailability;
+  });
+
   return (
     <div>
       <SectionTitle icon={DoorOpen} title="Available rooms" subtitle="Classrooms, laboratories, and meeting spaces." />
+      <div className="form-panel mb-5 grid gap-3 lg:grid-cols-5">
+        <label className="lg:col-span-2">
+          <span className="form-label">Search</span>
+          <div className="select-shell">
+            <input
+              className="input pl-10"
+              value={filters.search}
+              onChange={(event) => setFilters({ ...filters, search: event.target.value })}
+              placeholder="Room or location"
+            />
+            <Search className="select-icon left-icon" size={18} />
+          </div>
+        </label>
+        <SelectField label="Type" value={filters.type} onChange={(type) => setFilters({ ...filters, type })}>
+          <option value="all">All types</option>
+          <option value="classroom">Classroom</option>
+          <option value="laboratory">Laboratory</option>
+          <option value="meeting">Meeting room</option>
+        </SelectField>
+        <Field
+          label="Minimum capacity"
+          type="number"
+          value={filters.minCapacity}
+          onChange={(minCapacity) => setFilters({ ...filters, minCapacity })}
+          required={false}
+        />
+        <SelectField label="Amenity" value={filters.amenity} onChange={(amenity) => setFilters({ ...filters, amenity })} required={false}>
+          <option value="">Any amenity</option>
+          {amenities.map((amenity) => (
+            <option key={amenity} value={amenity}>
+              {amenity}
+            </option>
+          ))}
+        </SelectField>
+        <Field label="Available date" type="date" value={filters.date} onChange={(date) => setFilters({ ...filters, date })} required={false} />
+        <Field label="Start" type="time" value={filters.startTime} onChange={(startTime) => setFilters({ ...filters, startTime })} required={false} />
+        <Field label="End" type="time" value={filters.endTime} onChange={(endTime) => setFilters({ ...filters, endTime })} required={false} />
+        <button className="btn-secondary justify-center lg:col-span-2" onClick={() => setFilters({ search: "", type: "all", minCapacity: "", amenity: "", date: "", startTime: "08:00", endTime: "09:00" })}>
+          <Filter size={18} />
+          Reset filters
+        </button>
+      </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {rooms.map((room) => (
+        {filteredRooms.map((room) => (
           <article key={room._id} className="app-card">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -492,6 +609,18 @@ function BookingForm({ rooms, onSaved, setMessage }) {
         <Field label="Date" type="date" min={today} value={form.date} onChange={(date) => setForm({ ...form, date })} />
         <Field label="Start time" type="time" value={form.startTime} onChange={(startTime) => setForm({ ...form, startTime })} />
         <Field label="End time" type="time" value={form.endTime} onChange={(endTime) => setForm({ ...form, endTime })} />
+        <SelectField label="Repeat" value={form.recurrence} onChange={(recurrence) => setForm({ ...form, recurrence })}>
+          <option value="none">Does not repeat</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </SelectField>
+        <Field
+          label="Occurrences"
+          type="number"
+          min="1"
+          value={form.occurrenceCount}
+          onChange={(occurrenceCount) => setForm({ ...form, occurrenceCount })}
+        />
         <label className="lg:col-span-2">
           <span className="form-label">Purpose</span>
           <textarea
@@ -515,6 +644,89 @@ function BookingHistory({ bookings }) {
     <div>
       <SectionTitle icon={History} title="Booking history" subtitle="Track pending, approved, and rejected requests." />
       <BookingTable bookings={bookings} />
+    </div>
+  );
+}
+
+function NotificationsView({ notifications, onSaved, setMessage }) {
+  async function readAll() {
+    try {
+      await api.patch("/notifications/read-all");
+      setMessage("Notifications marked as read.");
+      onSaved();
+    } catch (error) {
+      setMessage(apiErrorMessage(error, "Unable to update notifications."));
+    }
+  }
+
+  return (
+    <div>
+      <SectionTitle icon={Bell} title="Notification center" subtitle="Booking updates, reminders, and system messages." />
+      <div className="mb-4 flex justify-end">
+        <button className="btn-secondary" onClick={readAll}>
+          <Check size={18} />
+          Mark all read
+        </button>
+      </div>
+      <div className="space-y-3">
+        {notifications.length === 0 && <p className="form-panel text-sm text-slate-600">No notifications yet.</p>}
+        {notifications.map((notification) => (
+          <article key={notification._id} className={`request-row ${notification.readAt ? "" : "unread-row"}`}>
+            <div>
+              <p className="font-semibold">{notification.title}</p>
+              <p className="text-sm text-slate-600">{notification.message}</p>
+            </div>
+            <span className="badge border-line bg-white text-slate-700">{notification.type}</span>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProfileView({ user, onUserSaved, setMessage }) {
+  const [profile, setProfile] = useState({ name: user.name, department: user.department || "" });
+  const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "" });
+
+  async function saveProfile(event) {
+    event.preventDefault();
+    try {
+      const { data } = await api.put("/auth/profile", profile);
+      onUserSaved(data.user);
+      setMessage("Profile updated.");
+    } catch (error) {
+      setMessage(apiErrorMessage(error, "Unable to update profile."));
+    }
+  }
+
+  async function savePassword(event) {
+    event.preventDefault();
+    try {
+      await api.put("/auth/password", passwords);
+      setPasswords({ currentPassword: "", newPassword: "" });
+      setMessage("Password updated.");
+    } catch (error) {
+      setMessage(apiErrorMessage(error, "Unable to update password."));
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle icon={UserCog} title="Profile management" subtitle="Keep account and department details current." />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <form className="form-panel grid gap-4" onSubmit={saveProfile}>
+          <h3 className="panel-title"><UserRound size={20} />Account details</h3>
+          <Field label="Full name" value={profile.name} onChange={(name) => setProfile({ ...profile, name })} />
+          <Field label="Department" value={profile.department} onChange={(department) => setProfile({ ...profile, department })} required={false} />
+          <button className="btn-primary" type="submit"><Save size={18} />Save profile</button>
+        </form>
+        <form className="form-panel grid gap-4" onSubmit={savePassword}>
+          <h3 className="panel-title"><ShieldCheck size={20} />Password</h3>
+          <Field label="Current password" type="password" value={passwords.currentPassword} onChange={(currentPassword) => setPasswords({ ...passwords, currentPassword })} />
+          <Field label="New password" type="password" value={passwords.newPassword} onChange={(newPassword) => setPasswords({ ...passwords, newPassword })} />
+          <button className="btn-primary" type="submit"><Save size={18} />Update password</button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -687,7 +899,16 @@ function RoomManager({ rooms, onSaved, setMessage }) {
   );
 }
 
-function CalendarView({ bookings }) {
+function calendarDate(date) {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function calendarTime(date) {
+  return date.toTimeString().slice(0, 5);
+}
+
+function CalendarView({ bookings, role, onSaved, setMessage }) {
   const events = useMemo(
     () =>
       bookings
@@ -701,6 +922,24 @@ function CalendarView({ bookings }) {
     [bookings]
   );
 
+  async function moveBooking(info) {
+    if (role !== "admin") return;
+    try {
+      const start = info.event.start;
+      const end = info.event.end || new Date(start.getTime() + 60 * 60 * 1000);
+      await api.patch(`/bookings/${info.event.id}/schedule`, {
+        date: calendarDate(start),
+        startTime: calendarTime(start),
+        endTime: calendarTime(end)
+      });
+      setMessage("Booking rescheduled.");
+      onSaved();
+    } catch (error) {
+      info.revert();
+      setMessage(apiErrorMessage(error, "Unable to reschedule booking."));
+    }
+  }
+
   return (
     <div>
       <SectionTitle icon={Clock3} title="Calendar schedule" subtitle="Approved reservations by date and time." />
@@ -710,6 +949,9 @@ function CalendarView({ bookings }) {
           initialView="timeGridWeek"
           headerToolbar={{ left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay" }}
           events={events}
+          editable={role === "admin"}
+          eventDrop={moveBooking}
+          eventResize={moveBooking}
           height="auto"
         />
       </div>
@@ -717,7 +959,19 @@ function CalendarView({ bookings }) {
   );
 }
 
-function ReportsView({ report, logs, bookings }) {
+function ReportsView({ report, logs, bookings, setLogs, setMessage }) {
+  const [logFilters, setLogFilters] = useState({ action: "", entity: "", dateFrom: "", dateTo: "" });
+
+  async function applyLogFilters() {
+    try {
+      const params = Object.fromEntries(Object.entries(logFilters).filter(([, value]) => value));
+      const { data } = await api.get("/logs", { params });
+      setLogs(data);
+    } catch (error) {
+      setMessage(apiErrorMessage(error, "Unable to filter logs."));
+    }
+  }
+
   return (
     <div className="space-y-8">
       <SectionTitle icon={BarChart3} title="Reports and logs" subtitle="Usage summaries and recent activity." />
@@ -737,11 +991,49 @@ function ReportsView({ report, logs, bookings }) {
         <Metric label="Approved" value={report?.counts?.approved || 0} />
         <Metric label="Rejected" value={report?.counts?.rejected || 0} />
       </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="form-panel">
+          <h3 className="panel-title"><BarChart3 size={20} />Room utilization</h3>
+          <p className="mt-4 text-4xl font-bold">{report?.utilization || 0}%</p>
+          <p className="text-sm text-slate-600">Approved bookings compared with available room capacity baseline.</p>
+          <div className="mt-5 space-y-3">
+            {report?.topRooms?.map((item) => (
+              <div key={item.room}>
+                <div className="flex justify-between text-sm font-semibold"><span>{item.room}</span><span>{item.bookings}</span></div>
+                <div className="bar-track"><span style={{ width: `${Math.min(item.bookings * 15, 100)}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="form-panel">
+          <h3 className="panel-title"><Clock3 size={20} />Peak hours</h3>
+          <div className="mt-5 space-y-3">
+            {report?.peakHours?.length ? report.peakHours.map((item) => (
+              <div key={item.hour}>
+                <div className="flex justify-between text-sm font-semibold"><span>{item.hour}</span><span>{item.bookings}</span></div>
+                <div className="bar-track"><span style={{ width: `${Math.min(item.bookings * 18, 100)}%` }} /></div>
+              </div>
+            )) : <p className="text-sm text-slate-600">No approved booking data yet.</p>}
+          </div>
+        </section>
+      </div>
       <section className="form-panel">
         <h3 className="panel-title">
           <ClipboardList size={20} />
           Usage logs
         </h3>
+        <div className="mt-4 grid gap-3 lg:grid-cols-5">
+          <Field label="Action" value={logFilters.action} onChange={(action) => setLogFilters({ ...logFilters, action })} required={false} />
+          <SelectField label="Entity" value={logFilters.entity} onChange={(entity) => setLogFilters({ ...logFilters, entity })} required={false}>
+            <option value="">All entities</option>
+            <option value="User">User</option>
+            <option value="Room">Room</option>
+            <option value="Booking">Booking</option>
+          </SelectField>
+          <Field label="From" type="date" value={logFilters.dateFrom} onChange={(dateFrom) => setLogFilters({ ...logFilters, dateFrom })} required={false} />
+          <Field label="To" type="date" value={logFilters.dateTo} onChange={(dateTo) => setLogFilters({ ...logFilters, dateTo })} required={false} />
+          <button className="btn-secondary justify-center self-end" onClick={applyLogFilters}><Filter size={18} />Filter logs</button>
+        </div>
         <div className="mt-4 divide-y divide-line">
           {logs.map((log) => (
             <div key={log._id} className="py-3">

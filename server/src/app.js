@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import authRoutes from "./routes/auth.routes.js";
 import bookingRoutes from "./routes/booking.routes.js";
 import logRoutes from "./routes/log.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 import roomRoutes from "./routes/room.routes.js";
 import { errorHandler, notFound } from "./middleware/error.js";
@@ -35,6 +36,7 @@ app.use("/api/rooms", roomRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/logs", logRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

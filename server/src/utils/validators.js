@@ -5,7 +5,8 @@ const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const registerSchema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email().toLowerCase(),
-  password: z.string().min(6).max(80)
+  password: z.string().min(6).max(80),
+  department: z.string().max(100).optional().default("")
 });
 
 export const loginSchema = z.object({
@@ -28,7 +29,30 @@ export const bookingSchema = z
     date: z.coerce.date(),
     startTime: z.string().regex(timePattern, "Start time must be HH:mm."),
     endTime: z.string().regex(timePattern, "End time must be HH:mm."),
-    purpose: z.string().min(5).max(400)
+    purpose: z.string().min(5).max(400),
+    recurrence: z.enum(["none", "weekly", "monthly"]).optional().default("none"),
+    occurrenceCount: z.coerce.number().int().min(1).max(12).optional().default(1)
+  })
+  .refine((data) => data.startTime < data.endTime, {
+    message: "End time must be later than start time.",
+    path: ["endTime"]
+  });
+
+export const profileSchema = z.object({
+  name: z.string().min(2).max(80),
+  department: z.string().max(100).optional().default("")
+});
+
+export const passwordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6).max(80)
+});
+
+export const scheduleSchema = z
+  .object({
+    date: z.coerce.date(),
+    startTime: z.string().regex(timePattern, "Start time must be HH:mm."),
+    endTime: z.string().regex(timePattern, "End time must be HH:mm.")
   })
   .refine((data) => data.startTime < data.endTime, {
     message: "End time must be later than start time.",

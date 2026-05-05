@@ -3,7 +3,7 @@ import { Room } from "../models/Room.js";
 
 export async function dashboardReport(_req, res, next) {
   try {
-    const [rooms, statusCounts, topRooms] = await Promise.all([
+    const [rooms, statusCounts, topRooms, peakHours] = await Promise.all([
       Room.countDocuments(),
       Booking.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
       Booking.aggregate([
@@ -21,6 +21,13 @@ export async function dashboardReport(_req, res, next) {
         },
         { $unwind: "$room" },
         { $project: { room: "$room.name", bookings: 1 } }
+      ]),
+      Booking.aggregate([
+        { $match: { status: "approved" } },
+        { $group: { _id: "$startTime", bookings: { $sum: 1 } } },
+        { $sort: { bookings: -1 } },
+        { $limit: 8 },
+        { $project: { hour: "$_id", bookings: 1, _id: 0 } }
       ])
     ]);
 
@@ -29,7 +36,10 @@ export async function dashboardReport(_req, res, next) {
       { pending: 0, approved: 0, rejected: 0 }
     );
 
-    res.json({ rooms, counts, topRooms });
+    const approvedTotal = counts.approved || 0;
+    const utilization = rooms ? Math.round((approvedTotal / Math.max(rooms * 30, 1)) * 100) : 0;
+
+    res.json({ rooms, counts, topRooms, peakHours, utilization });
   } catch (error) {
     next(error);
   }
