@@ -35,7 +35,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { api, setAuthToken } from "./api";
 import { exportBookingsCSV, exportBookingsPDF } from "./services/exportReports";
-import { formatDate, roomTypes, statusClass } from "./utils";
+import { formatDate, roomTypes } from "./utils";
 
 const navItems = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, roles: ["user", "admin"] },
@@ -220,7 +220,7 @@ function App() {
               </button>
             </div>
           )}
-          {loading && <p className="mb-4 text-sm text-slate-600">Loading workspace data...</p>}
+          {loading && <LoadingSkeleton />}
           {view === "overview" && (
             <OverviewView
               rooms={rooms}
@@ -432,6 +432,33 @@ function roomAvailable(roomId, bookings, date, startTime, endTime) {
   );
 }
 
+function LoadingSkeleton() {
+  return (
+    <div className="skeleton-grid mb-5">
+      <div className="skeleton-card" />
+      <div className="skeleton-card" />
+      <div className="skeleton-card" />
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, subtitle, action }) {
+  return (
+    <div className="empty-state">
+      <div>
+        <div className="empty-icon">{Icon && <Icon size={24} />}</div>
+        <h3 className="mt-4 text-lg font-bold">{title}</h3>
+        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">{subtitle}</p>
+        {action && <div className="mt-5">{action}</div>}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  return <span className={`badge status-badge status-${status}`}>{status}</span>;
+}
+
 function OverviewView({ rooms, bookings, role, onNavigate }) {
   const pending = bookings.filter((booking) => booking.status === "pending").length;
   const approved = bookings.filter((booking) => booking.status === "approved").length;
@@ -461,7 +488,7 @@ function OverviewView({ rooms, bookings, role, onNavigate }) {
                   {formatDate(nextBooking.date)} from {nextBooking.startTime} to {nextBooking.endTime}
                 </p>
               </div>
-              <span className={`badge capitalize ${statusClass(nextBooking.status)}`}>{nextBooking.status}</span>
+              <StatusBadge status={nextBooking.status} />
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-600">No approved upcoming booking yet.</p>
@@ -553,6 +580,13 @@ function RoomsView({ rooms, bookings }) {
           Reset filters
         </button>
       </div>
+      {filteredRooms.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="No rooms found"
+          subtitle="Try changing the search, capacity, amenity, or availability filters."
+        />
+      ) : (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredRooms.map((room) => (
           <article key={room._id} className="app-card">
@@ -574,6 +608,7 @@ function RoomsView({ rooms, bookings }) {
           </article>
         ))}
       </div>
+      )}
     </div>
   );
 }
@@ -669,7 +704,13 @@ function NotificationsView({ notifications, onSaved, setMessage }) {
         </button>
       </div>
       <div className="space-y-3">
-        {notifications.length === 0 && <p className="form-panel text-sm text-slate-600">No notifications yet.</p>}
+        {notifications.length === 0 && (
+          <EmptyState
+            icon={Bell}
+            title="No notifications yet"
+            subtitle="Booking updates, reminders, and approval decisions will appear here."
+          />
+        )}
         {notifications.map((notification) => (
           <article key={notification._id} className={`request-row ${notification.readAt ? "" : "unread-row"}`}>
             <div>
@@ -763,7 +804,9 @@ function ApprovalQueue({ bookings, onSaved, setMessage }) {
         Booking requests
       </h3>
       <div className="mt-4 space-y-3">
-        {pending.length === 0 && <p className="text-sm text-slate-500">No pending requests.</p>}
+        {pending.length === 0 && (
+          <EmptyState icon={ClipboardList} title="No pending requests" subtitle="New booking requests will appear here for review." />
+        )}
         {pending.map((booking) => (
           <div key={booking._id} className="request-row">
             <div>
@@ -1048,28 +1091,38 @@ function ReportsView({ report, logs, bookings, setLogs, setMessage }) {
 }
 
 function BookingTable({ bookings }) {
+  if (bookings.length === 0) {
+    return (
+      <EmptyState
+        icon={History}
+        title="No booking history yet"
+        subtitle="Your submitted booking requests will appear here."
+      />
+    );
+  }
+
   return (
-    <div className="overflow-hidden border border-line bg-white shadow-soft">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="border-b border-line bg-canvas text-slate-600">
+    <div className="table-shell">
+      <div className="table-scroll">
+        <table className="table">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Room</th>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Time</th>
-              <th className="px-4 py-3">Purpose</th>
-              <th className="px-4 py-3">Status</th>
+              <th>Room</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Purpose</th>
+              <th>Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-line">
+          <tbody>
             {bookings.map((booking) => (
               <tr key={booking._id}>
-                <td className="px-4 py-3 font-semibold">{booking.room?.name}</td>
-                <td className="px-4 py-3">{formatDate(booking.date)}</td>
-                <td className="px-4 py-3">{booking.startTime} - {booking.endTime}</td>
-                <td className="px-4 py-3">{booking.purpose}</td>
-                <td className="px-4 py-3">
-                  <span className={`badge capitalize ${statusClass(booking.status)}`}>{booking.status}</span>
+                <td className="font-semibold">{booking.room?.name}</td>
+                <td>{formatDate(booking.date)}</td>
+                <td>{booking.startTime} - {booking.endTime}</td>
+                <td>{booking.purpose}</td>
+                <td>
+                  <StatusBadge status={booking.status} />
                 </td>
               </tr>
             ))}
@@ -1083,8 +1136,13 @@ function BookingTable({ bookings }) {
 function Metric({ label, value }) {
   return (
     <div className="app-card">
-      <p className="text-sm font-semibold text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold">{value}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-500">{label}</p>
+          <p className="mt-2 text-3xl font-bold">{value}</p>
+        </div>
+        <div className="empty-icon !h-10 !w-10"><BarChart3 size={20} /></div>
+      </div>
     </div>
   );
 }
