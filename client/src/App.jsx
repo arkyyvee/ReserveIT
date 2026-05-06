@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarDays,
   Check,
+  CheckCircle2,
   ChevronDown,
   ClipboardList,
   Clock3,
@@ -25,6 +26,7 @@ import {
   ShieldCheck,
   Sun,
   Trash2,
+  Upload,
   UserCog,
   UserRound,
   X
@@ -66,6 +68,13 @@ const initialRoom = {
   capacity: 20,
   amenities: "",
   isActive: true
+};
+
+const metricIcons = {
+  rooms: DoorOpen,
+  pending: Clock3,
+  approved: CheckCircle2,
+  rejected: X
 };
 
 function apiErrorMessage(error, fallback) {
@@ -203,10 +212,10 @@ function App() {
             <button className="icon-button" onClick={() => setIsDark(!isDark)} aria-label="Toggle dark mode">
               {isDark ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <span className="badge border-line bg-white text-slate-700">
-              <UserRound size={15} />
-              {session.user.name}
-            </span>
+            <button className="profile-pill" onClick={() => setView("profile")} aria-label="Open profile">
+              <Avatar user={session.user} />
+              <span>{session.user.name}</span>
+            </button>
             <span className="badge border-line bg-white capitalize text-slate-700">{session.user.role}</span>
           </div>
         </header>
@@ -459,6 +468,18 @@ function StatusBadge({ status }) {
   return <span className={`badge status-badge status-${status}`}>{status}</span>;
 }
 
+function Avatar({ user, size = "sm" }) {
+  const sizeClass = size === "lg" ? "avatar-lg" : "avatar-sm";
+  if (user?.avatar) {
+    return <img className={`avatar ${sizeClass}`} src={user.avatar} alt={`${user.name} profile`} />;
+  }
+  return (
+    <span className={`avatar ${sizeClass}`}>
+      {user?.name?.slice(0, 1).toUpperCase() || <UserRound size={16} />}
+    </span>
+  );
+}
+
 function OverviewView({ rooms, bookings, role, onNavigate }) {
   const pending = bookings.filter((booking) => booking.status === "pending").length;
   const approved = bookings.filter((booking) => booking.status === "approved").length;
@@ -470,9 +491,9 @@ function OverviewView({ rooms, bookings, role, onNavigate }) {
     <div className="space-y-6">
       <SectionTitle icon={LayoutDashboard} title="Workspace overview" subtitle="A quick view of rooms, requests, and upcoming schedules." />
       <div className="grid gap-4 md:grid-cols-3">
-        <Metric label="Available rooms" value={rooms.length} />
-        <Metric label="Pending requests" value={pending} />
-        <Metric label="Approved bookings" value={approved} />
+        <Metric label="Available rooms" value={rooms.length} icon={metricIcons.rooms} />
+        <Metric label="Pending requests" value={pending} icon={metricIcons.pending} />
+        <Metric label="Approved bookings" value={approved} icon={metricIcons.approved} />
       </div>
       <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
         <section className="form-panel">
@@ -726,8 +747,20 @@ function NotificationsView({ notifications, onSaved, setMessage }) {
 }
 
 function ProfileView({ user, onUserSaved, setMessage }) {
-  const [profile, setProfile] = useState({ name: user.name, department: user.department || "" });
+  const [profile, setProfile] = useState({ name: user.name, department: user.department || "", avatar: user.avatar || "" });
   const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "" });
+
+  function uploadAvatar(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1_500_000) {
+      setMessage("Please choose an image under 1.5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setProfile({ ...profile, avatar: reader.result });
+    reader.readAsDataURL(file);
+  }
 
   async function saveProfile(event) {
     event.preventDefault();
@@ -757,6 +790,18 @@ function ProfileView({ user, onUserSaved, setMessage }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <form className="form-panel grid gap-4" onSubmit={saveProfile}>
           <h3 className="panel-title"><UserRound size={20} />Account details</h3>
+          <div className="profile-upload">
+            <Avatar user={{ ...user, ...profile }} size="lg" />
+            <div>
+              <p className="font-semibold">Profile picture</p>
+              <p className="text-sm text-slate-600">Upload a square image under 1.5MB.</p>
+              <label className="btn-secondary mt-3 inline-flex">
+                <Upload size={18} />
+                Upload photo
+                <input className="hidden" type="file" accept="image/*" onChange={uploadAvatar} />
+              </label>
+            </div>
+          </div>
           <Field label="Full name" value={profile.name} onChange={(name) => setProfile({ ...profile, name })} />
           <Field label="Department" value={profile.department} onChange={(department) => setProfile({ ...profile, department })} required={false} />
           <button className="btn-primary" type="submit"><Save size={18} />Save profile</button>
@@ -1029,10 +1074,10 @@ function ReportsView({ report, logs, bookings, setLogs, setMessage }) {
         </button>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
-        <Metric label="Rooms" value={report?.rooms || 0} />
-        <Metric label="Pending" value={report?.counts?.pending || 0} />
-        <Metric label="Approved" value={report?.counts?.approved || 0} />
-        <Metric label="Rejected" value={report?.counts?.rejected || 0} />
+        <Metric label="Rooms" value={report?.rooms || 0} icon={metricIcons.rooms} />
+        <Metric label="Pending" value={report?.counts?.pending || 0} icon={metricIcons.pending} />
+        <Metric label="Approved" value={report?.counts?.approved || 0} icon={metricIcons.approved} />
+        <Metric label="Rejected" value={report?.counts?.rejected || 0} icon={metricIcons.rejected} />
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="form-panel">
@@ -1133,7 +1178,7 @@ function BookingTable({ bookings }) {
   );
 }
 
-function Metric({ label, value }) {
+function Metric({ label, value, icon: Icon = BarChart3 }) {
   return (
     <div className="app-card">
       <div className="flex items-start justify-between gap-3">
@@ -1141,7 +1186,7 @@ function Metric({ label, value }) {
           <p className="text-sm font-semibold text-slate-500">{label}</p>
           <p className="mt-2 text-3xl font-bold">{value}</p>
         </div>
-        <div className="empty-icon !h-10 !w-10"><BarChart3 size={20} /></div>
+        <div className="empty-icon !h-10 !w-10"><Icon size={20} /></div>
       </div>
     </div>
   );

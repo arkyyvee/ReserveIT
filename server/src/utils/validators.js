@@ -40,7 +40,8 @@ export const bookingSchema = z
 
 export const profileSchema = z.object({
   name: z.string().min(2).max(80),
-  department: z.string().max(100).optional().default("")
+  department: z.string().max(100).optional().default(""),
+  avatar: z.string().max(2_000_000).optional().default("")
 });
 
 export const passwordSchema = z.object({

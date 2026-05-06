@@ -14,6 +14,7 @@ function userPayload(user) {
     name: user.name,
     email: user.email,
     department: user.department,
+    avatar: user.avatar,
     role: user.role
   };
 }
@@ -73,6 +74,7 @@ export async function updateProfile(req, res, next) {
   try {
     req.user.name = req.body.name;
     req.user.department = req.body.department || "";
+    req.user.avatar = req.body.avatar || "";
     await req.user.save();
     res.json({ user: userPayload(req.user) });
   } catch (error) {
