@@ -1186,7 +1186,7 @@ function Metric({ label, value, icon: Icon = BarChart3 }) {
           <p className="text-sm font-semibold text-slate-500">{label}</p>
           <p className="mt-2 text-3xl font-bold">{value}</p>
         </div>
-        <div className="empty-icon !h-10 !w-10"><Icon size={20} /></div>
+        <div className="metric-icon"><Icon size={20} /></div>
       </div>
     </div>
   );
@@ -1194,13 +1194,13 @@ function Metric({ label, value, icon: Icon = BarChart3 }) {
 
 function SectionTitle({ icon: Icon, title, subtitle }) {
   return (
-    <div className="mb-5 flex items-center gap-3">
-      <div className="grid h-11 w-11 place-items-center border border-line bg-white text-brand shadow-soft">
+    <div className="section-title">
+      <div className="section-icon">
         <Icon size={22} />
       </div>
       <div>
-        <h2 className="text-2xl font-bold">{title}</h2>
-        <p className="text-sm text-slate-600">{subtitle}</p>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
       </div>
     </div>
   );
